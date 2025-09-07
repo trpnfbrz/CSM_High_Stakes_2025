@@ -34,8 +34,8 @@ Optical optical(15);
 Imu imu(10); 
 
 MotorGroup 
-	leftMotors({1, 3, -5}, MotorGearset::blue),
-	rightMotors({-2, -4, 6}, MotorGearset::blue);
+	leftMotors({-2, -4, 6}, MotorGearset::blue),
+	rightMotors({1, 3, -5}, MotorGearset::blue);
 
 lemlib::ExpoDriveCurve driveCurve(
   5,    // deadband
@@ -71,9 +71,9 @@ lemlib::OdomSensors sensors(
 
 // lateral PID controller
 lemlib::ControllerSettings lateralController(
-	  2,   // proportional gain (kP)
-    0,   // integral gain (kI)
-    0, // derivative gain (kD)
+	  27.5,   // proportional gain (kP)
+    2,   // integral gain (kI)
+    180, // derivative gain (kD)
 	  3,   // anti windup
     1,   // small error range, in inches
     100, // small error range timeout, in milliseconds
@@ -84,9 +84,9 @@ lemlib::ControllerSettings lateralController(
 
 // angular PID controller
 lemlib::ControllerSettings angularController(
-	  3, // proportional gain (kP)
+	  1.9, // proportional gain (kP)
     0, // integral gain (kI)
-    2, // derivative gain (kD)
+    6, // derivative gain (kD)
     3, // anti windup
     1, // small error range, in inches
     100, // small error range timeout, in milliseconds
@@ -122,7 +122,10 @@ void initialize() {
             else if( turboToggle && !autoMode) Controller1.set_text(0, 0, "turboON |autoOFF");
             else if(!turboToggle &&  autoMode) Controller1.set_text(0, 0, "turboOFF|autoON ");
             else if(!turboToggle && !autoMode) Controller1.set_text(0, 0, "turboOFF|autoOFF");
-            
+
+            // // print coords to controller screen
+            // Controller1.set_text(0, 0, "x:" + std::to_string(chassis.getPose().x) + "Y:" + std::to_string(chassis.getPose().x));
+
             delay(20); // delay to save resources
         }
     });
@@ -135,45 +138,35 @@ void initialize() {
 void autonomous() {
   armMotor.set_brake_mode(MOTOR_BRAKE_COAST);
           /*****FULL FIELD MATCH AUTON*****/
-            // //start
-            // chassis.setPose(95.85, 7, 180);
+            // score alliance stake
+            chassis.setPose(85.5, 10.375, -121);
+            armMotor.move_absolute(175, 100);
+            delay(1000);
 
-            // //right side of field (pt1)
-            // chassis.moveToPoint(93.77, 46.64 - 6, 4000, {.forwards = false, .minSpeed = 60});
-            // chassis.moveToPoint(93.77, 46.64, 4000, {.forwards = false, .maxSpeed = 60});
-            // delay(300);
-            // mogoPiston.set_value(true);
-            
-            // //right side of field (pt2)
-            // chassis.turnToHeading(90, 2000, {.minSpeed = 80});
-            // chassis.moveToPose(117.33, 46.64, 90, 3000, {.minSpeed = 80});
-            // Intake.move(127);
-            // delay(500);
-            // chassis.turnToHeading(-135, 2000, {.minSpeed = 60});
-            // chassis.moveToPose(93.77, 23.08, -135, 1500, {.minSpeed = 60});
+            chassis.moveToPose(93.77, 23.08, 180, 2000, {.forwards = false, .minSpeed = 30});
+            delay(500);
+            armMotor.set_brake_mode(MOTOR_BRAKE_HOLD);
+            armMotor.move_absolute(40, 100);
 
-            // //alliance stake
-            // chassis.moveToPose(70.20 - 2, 23.08 - 4, -90, 1500);
-            // mogoPiston.set_value(false);
-            // delay(1500);
-            
-            // //score ring
-            // chassis.turnToHeading(-45, 2000, {.minSpeed = 80});
-            // chassis.moveToPoint(46.64 + 10, 23.08, 1500, {.minSpeed = 60});
-            // delay(800);
-            // Intake.move(0);
-            // chassis.moveToPoint(46.64, 38, 2000, {.forwards = false, .maxSpeed = 80});
-            // delay(1500);
-            // mogoPiston.set_value(true);
-            // delay(500);
-            // Intake.move(127);
-            // delay(1000);
+            // stake 1
+            chassis.moveToPose(93.77, 48, 180, 4000, {.forwards = false, .minSpeed = 30});
+            chassis.waitUntilDone();
+            delay(500);
+            mogoPiston.set_value(true);
+            delay(1000);
 
-            // //go to touch bottom of ladder
-            // chassis.moveToPoint(70 - 10, 70, 2700, {.forwards = false, .maxSpeed = 50});
-            // delay(400);
-            // Intake.move(0);
-            // delay(2000);
+            // ring 2
+            Intake.move(127);
+            chassis.turnToHeading(90, 2000, {.minSpeed = 60});
+            chassis.moveToPose(117.33, 46.64, 90, 3000, {.minSpeed = 30});
+            delay(2500);
+
+            //go to touch bottom of ladder
+            chassis.moveToPose(93.77, 46.64, 90, 3000, {.forwards = false, .minSpeed = 30});
+            Intake.move(0);
+            chassis.moveToPoint(80.28, 54.21, 2700, {.forwards = false, .maxSpeed = 50});
+            armMotor.set_brake_mode(MOTOR_BRAKE_COAST);
+            delay(2000);
 
 
 
@@ -415,8 +408,8 @@ void opcontrol() {
       toggleTimeOut = 0;
     }
     if(turboToggle || mogoToggle) {
-      chassis.arcade(leftY, -rightX, false, 0.25);
-    } else chassis.arcade(0.7*leftY, -0.6*rightX, false, 0.25);
+      chassis.arcade(leftY, rightX, false, 0.25);
+    } else chassis.arcade(0.7*leftY, 0.6*rightX, false, 0.25);
 
     // Intake motor control
     if(Controller1.get_digital(E_CONTROLLER_DIGITAL_R1)) {
@@ -436,21 +429,16 @@ void opcontrol() {
     
     // Claw arm motor control
     if(Controller1.get_digital(E_CONTROLLER_DIGITAL_DOWN) && toggleTimeOut > 9) {
-      armMotor.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-      armMotor.move_absolute(50, 50);
+      armMotor.set_brake_mode(MOTOR_BRAKE_COAST);
+      armMotor.move_absolute(50, 100);
+      armMotor.set_brake_mode(MOTOR_BRAKE_HOLD);
       toggleTimeOut = 0;
-      autoMode = !autoMode;
-    } // else if(Controller1.get_digital(E_CONTROLLER_DIGITAL_DOWN) && toggleTimeOut > 9 && !autoMode) {
-    //   armMotor.set_brake_mode(E_MOTOR_BRAKE_COAST);
-    //   armMotor.move_absolute(0, 50);
-    //   toggleTimeOut = 0;
-    //   autoMode = !autoMode;
-    // }
+    }
 
     if(Controller1.get_digital(E_CONTROLLER_DIGITAL_L1)) { // any movements will turn off arm PID
-      armMotor.move(-100);
+      armMotor.move(-127);
     } else if(Controller1.get_digital(E_CONTROLLER_DIGITAL_L2)) {
-      armMotor.move(100);
+      armMotor.move(127);
     } else armMotor.brake();
     
     // Allows lb loader Task to run when bumper is activated
@@ -473,11 +461,11 @@ void opcontrol() {
     } 
 
     if(Controller1.get_digital(E_CONTROLLER_DIGITAL_B)) {
-      // autonomous(); 
+      autonomous(); 
 
-      chassis.setPose(0, 0, 0);
-      // chassis.moveToPoint(0, 30, 10000);
-      chassis.turnToHeading(90, 10000);
+      // chassis.setPose(0, 0, 0);
+      // // chassis.moveToPose(0, 30, 0, 10000);
+      // chassis.turnToHeading(90, 10000);
     }
 
     toggleTimeOut++;
